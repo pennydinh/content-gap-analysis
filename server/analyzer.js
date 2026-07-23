@@ -90,13 +90,15 @@ ${JSON.stringify(compSummaries, null, 1)}
 Trả về JSON:
 {
   "keywordGaps": [
-    { "keyword": "cụm từ khóa 2-4 từ", "frequency": <số lần xuất hiện ở đối thủ>, "foundIn": ["url đối thủ"], "priority": "high|medium|low", "reason": "lý do ngắn" }
+    { "keyword": "cụm từ khóa 2-4 từ", "frequency": 12, "foundIn": ["doithu1.com", "doithu2.com"], "priority": "high|medium|low", "reason": "lý do ngắn" }
   ],
   "topicGaps": [
-    { "topic": "chủ đề", "myCount": <số bài của bạn>, "competitors": {"url": <số bài>}, "hasGap": true/false, "suggestion": "gợi ý nội dung" }
+    { "topic": "chủ đề", "myCount": 0, "competitors": {"doithu1.com": 3}, "hasGap": true, "suggestion": "gợi ý nội dung" }
   ]
 }
 
+- "frequency" PHẢI LÀ MỘT CON SỐ (Integer) đếm số lần xuất hiện. KHÔNG ĐỂ 0.
+- "foundIn" PHẢI LÀ MỘT MẢNG CÁC ĐỊA CHỈ TÊN MIỀN (Domain) của đối thủ chứa từ khóa đó. KHÔNG ĐỂ TRỐNG.
 Tìm 15-30 keyword gaps và 8-15 topic gaps. Ưu tiên các keyword/topic có giá trị SEO cao.`,
     kymaApiKey
   );
