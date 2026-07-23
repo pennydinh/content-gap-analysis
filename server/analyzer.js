@@ -172,6 +172,42 @@ Tạo 10-20 priority items và content calendar 12 tuần (3 tháng).`,
   });
 
   const topicGaps = keywordTopicResult.topicGaps || [];
+  
+  // POST-PROCESSING for Topic Gaps: Ensure exact URL keys and accurate counts
+  topicGaps.forEach(gap => {
+    const topicKeywords = (gap.topic || '').toLowerCase().split(' ').filter(w => w.length > 2);
+    
+    // Recalculate myCount based on actual pages
+    let myCount = 0;
+    mySiteData.forEach(p => {
+      const titleLower = (p.title || '').toLowerCase();
+      if (topicKeywords.some(k => titleLower.includes(k))) myCount++;
+    });
+    // Use LLM's count if our simple heuristic finds nothing but LLM claims > 0
+    if (myCount > 0 || !gap.myCount) gap.myCount = myCount;
+
+    // Recalculate competitor counts and map them to EXACT URL keys expected by Frontend
+    const exactCompCounts = {};
+    let hasGap = true;
+    
+    competitorData.forEach(comp => {
+      let count = 0;
+      comp.pages.forEach(p => {
+        const titleLower = (p.title || '').toLowerCase();
+        if (topicKeywords.some(k => titleLower.includes(k))) count++;
+      });
+      // Check if LLM had a count for this competitor using fuzzy match
+      const llmCompKey = Object.keys(gap.competitors || {}).find(k => comp.url.includes(k) || k.includes(comp.url));
+      const llmCount = llmCompKey ? gap.competitors[llmCompKey] : 0;
+      
+      const finalCount = count > 0 ? count : (llmCount || 0);
+      exactCompCounts[comp.url] = finalCount;
+      if (finalCount === 0) hasGap = false; // if a competitor doesn't have it, gap might be smaller
+    });
+    
+    gap.competitors = exactCompCounts;
+  });
+
   const formatGaps = formatPriorityResult.formatGaps || { myFormats: {}, competitorFormats: {} };
   const priorityList = formatPriorityResult.priorityList || [];
   const calendar = formatPriorityResult.calendar || [];

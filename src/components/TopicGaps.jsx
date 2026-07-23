@@ -72,7 +72,8 @@ export default function TopicGaps({ gaps, mySite, competitors }) {
                   <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{g.topic}</td>
                   <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--brand-primary)' }}>{g.myCount || 0} bài</td>
                   {competitors?.map((c, idx) => {
-                    const compData = g.competitors?.find(x => x.url === c);
+                    // LLM might return "domain.com" instead of "https://domain.com/"
+                    const compData = g.competitors?.find(x => c.includes(x.url) || x.url.includes(c));
                     return <td key={idx} style={{ fontFamily: 'var(--font-mono)' }}>{compData ? compData.count : 0} bài</td>;
                   })}
                   <td>

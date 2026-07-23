@@ -275,6 +275,14 @@ th {
   font-size: 0.825rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+td {
+  min-width: 120px;
+}
+td:first-child {
+  min-width: 180px;
 }
 
 tr:last-child td {
