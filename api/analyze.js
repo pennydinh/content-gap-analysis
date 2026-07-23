@@ -1,10 +1,10 @@
 import { crawlSite } from '../server/crawler.js';
 import { analyzeGaps } from '../server/analyzer.js';
 
-export const maxDuration = 60; // Set Vercel function max duration to 60s
+export const maxDuration = 60; // Vercel function max duration
 
 export default async function handler(req, res) {
-  // Set CORS headers
+  // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -18,31 +18,29 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { myUrl, competitorUrls, maxPages = 10, kymaApiKey } = req.body || {};
+    const { myUrl, competitorUrls, maxPages = 15, kymaApiKey } = req.body || {};
     
-    if (!myUrl || !Array.isArray(competitorUrls)) {
-      return res.status(400).json({ error: 'myUrl (string) và competitorUrls (array) là bắt buộc' });
+    if (!myUrl || !Array.isArray(competitorUrls) || competitorUrls.length === 0) {
+      return res.status(400).json({ error: 'URL website của bạn và ít nhất 1 đối thủ là bắt buộc' });
     }
 
-    console.log('--- Starting Vercel Gap Analysis ---');
+    console.log('--- Starting Fast Gap Analysis ---');
     console.log(`Target: ${myUrl}`);
     console.log(`Competitors: ${competitorUrls.join(', ')}`);
     console.log(`Max Pages: ${maxPages}`);
-    
-    console.log('[1] Crawling target site...');
-    const mySiteData = await crawlSite(myUrl, maxPages);
-    
-    const competitorData = [];
-    for (let i = 0; i < competitorUrls.length; i++) {
-      console.log(`[2.${i+1}] Crawling competitor: ${competitorUrls[i]}`);
-      const pages = await crawlSite(competitorUrls[i], maxPages);
-      competitorData.push({
-        url: competitorUrls[i],
-        pages
-      });
-    }
-    
-    console.log('[3] Running AI gap analysis...');
+
+    // Crawl target site + all competitor sites concurrently in parallel
+    const [mySiteData, ...competitorResults] = await Promise.all([
+      crawlSite(myUrl, maxPages),
+      ...competitorUrls.map(url => crawlSite(url, maxPages))
+    ]);
+
+    const competitorData = competitorUrls.map((url, idx) => ({
+      url,
+      pages: competitorResults[idx] || []
+    }));
+
+    console.log('[AI] Running AI gap analysis...');
     const analysis = await analyzeGaps(mySiteData, competitorData, kymaApiKey);
     
     console.log('--- Analysis Complete ---');

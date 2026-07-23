@@ -17,10 +17,10 @@ app.use(express.json());
 
 app.post('/api/analyze', async (req, res) => {
   try {
-    const { myUrl, competitorUrls, maxPages = 20, kymaApiKey } = req.body;
+    const { myUrl, competitorUrls, maxPages = 15, kymaApiKey } = req.body || {};
     
-    if (!myUrl || !Array.isArray(competitorUrls)) {
-      return res.status(400).json({ error: 'myUrl (string) và competitorUrls (array) là bắt buộc' });
+    if (!myUrl || !Array.isArray(competitorUrls) || competitorUrls.length === 0) {
+      return res.status(400).json({ error: 'URL website của bạn và ít nhất 1 đối thủ là bắt buộc' });
     }
     
     console.log('--- Starting Gap Analysis ---');
@@ -29,20 +29,18 @@ app.post('/api/analyze', async (req, res) => {
     console.log(`Max Pages per site: ${maxPages}`);
     console.log(`Kyma API Key provided: ${kymaApiKey ? 'YES' : 'DEFAULT'}`);
     
-    console.log('\n[1] Crawling target site...');
-    const mySiteData = await crawlSite(myUrl, maxPages);
+    // Crawl all sites concurrently in parallel
+    const [mySiteData, ...competitorResults] = await Promise.all([
+      crawlSite(myUrl, maxPages),
+      ...competitorUrls.map(url => crawlSite(url, maxPages))
+    ]);
+
+    const competitorData = competitorUrls.map((url, idx) => ({
+      url,
+      pages: competitorResults[idx] || []
+    }));
     
-    const competitorData = [];
-    for (let i = 0; i < competitorUrls.length; i++) {
-      console.log(`\n[2.${i+1}] Crawling competitor site: ${competitorUrls[i]}`);
-      const pages = await crawlSite(competitorUrls[i], maxPages);
-      competitorData.push({
-        url: competitorUrls[i],
-        pages
-      });
-    }
-    
-    console.log('\n[3] Running gap analysis...');
+    console.log('\n[AI] Running gap analysis...');
     const analysis = await analyzeGaps(mySiteData, competitorData, kymaApiKey);
     
     console.log('--- Gap Analysis Complete ---');
