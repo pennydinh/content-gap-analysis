@@ -44,18 +44,18 @@ async function callLLM(systemPrompt, userPrompt, apiKey) {
   return JSON.parse(cleaned);
 }
 
-// Summarize pages into compact form for LLM context (max 25 pages per site to prevent context blowup)
+// Summarize pages into compact form for LLM context (max 15 pages per site to prevent context blowup & Vercel timeouts)
 function summarizePages(pages) {
-  const sampled = pages.slice(0, 30); // Take up to 30 pages
+  const sampled = pages.slice(0, 15); // Reduce from 30 to 15 for faster LLM processing
   return sampled.map(p => ({
     url: p.url,
     title: p.title || '(no title)',
     h1: p.h1 || '',
-    headings: (p.headings || []).slice(0, 6),
-    metaDescription: (p.metaDescription || '').slice(0, 150),
+    headings: (p.headings || []).slice(0, 4), // Reduce headings
+    metaDescription: (p.metaDescription || '').slice(0, 100),
     wordCount: p.wordCount,
     hasVideo: p.hasVideo,
-    snippet: (p.bodyText || '').slice(0, 350)
+    snippet: (p.bodyText || '').slice(0, 200) // Reduce snippet size
   }));
 }
 
@@ -68,11 +68,13 @@ export async function analyzeGaps(mySiteData, competitorData, kymaApiKey) {
     pages: summarizePages(c.pages)
   }));
 
-  // --- Step 1: Ask LLM to analyze keyword & topic gaps ---
-  console.log('  → [AI] Analyzing keywords & topics with LLM...');
+  console.log('  → [AI] Starting parallel LLM analysis for maximum speed...');
 
-  const keywordTopicResult = await callLLM(
-    `Bạn là chuyên gia SEO phân tích content gap. Bạn sẽ nhận dữ liệu crawl từ website chính và các đối thủ cạnh tranh.
+  // Run both LLM calls in parallel to cut execution time in half!
+  const [keywordTopicResult, formatPriorityResult] = await Promise.all([
+    // Call 1: Keywords & Topics
+    callLLM(
+      `Bạn là chuyên gia SEO phân tích content gap. Bạn sẽ nhận dữ liệu crawl từ website chính và các đối thủ cạnh tranh.
 Nhiệm vụ: Phân tích nội dung và tìm ra keyword gaps, topic gaps.
 
 QUAN TRỌNG:
@@ -81,7 +83,7 @@ QUAN TRỌNG:
 - Priority: "high" = đối thủ có nhiều, search intent rõ; "medium" = có ở 1-2 đối thủ; "low" = ít quan trọng
 - Trả về JSON format chính xác`,
 
-    `WEBSITE CHÍNH (${myUrl}):
+      `WEBSITE CHÍNH (${myUrl}):
 ${JSON.stringify(mySummary, null, 1)}
 
 ĐỐI THỦ CẠNH TRANH:
@@ -100,20 +102,18 @@ Trả về JSON:
 - "frequency" PHẢI LÀ MỘT CON SỐ (Integer) đếm số lần xuất hiện. KHÔNG ĐỂ 0.
 - "foundIn" PHẢI LÀ MỘT MẢNG CÁC ĐỊA CHỈ TÊN MIỀN (Domain) của đối thủ chứa từ khóa đó. KHÔNG ĐỂ TRỐNG.
 Tìm 15-30 keyword gaps và 8-15 topic gaps. Ưu tiên các keyword/topic có giá trị SEO cao.`,
-    kymaApiKey
-  );
+      kymaApiKey
+    ),
 
-  // --- Step 2: Ask LLM to analyze formats & create priority list ---
-  console.log('  → [AI] Analyzing content formats & priorities...');
-
-  const formatPriorityResult = await callLLM(
-    `Bạn là chuyên gia content strategy. Phân tích content format và tạo danh sách ưu tiên.
+    // Call 2: Formats & Priorities
+    callLLM(
+      `Bạn là chuyên gia content strategy. Phân tích content format và tạo danh sách ưu tiên.
 
 Format types hợp lệ: "bảng giá", "hướng dẫn", "so sánh", "đánh giá", "FAQ", "tin tức", "sản phẩm", "giới thiệu", "case study", "listicle", "video", "công cụ", "long-form", "liên hệ", "trang chuẩn"
 
 Priority levels: P0 (làm ngay), P1 (quý này), P2 (6 tháng), P3 (theo dõi)`,
 
-    `WEBSITE CHÍNH (${myUrl}):
+      `WEBSITE CHÍNH (${myUrl}):
 ${JSON.stringify(mySummary, null, 1)}
 
 ĐỐI THỦ:
@@ -134,8 +134,9 @@ Trả về JSON:
 }
 
 Tạo 10-20 priority items và content calendar 12 tuần (3 tháng).`,
-    kymaApiKey
-  );
+      kymaApiKey
+    )
+  ]);
 
   // --- Merge Results ---
   console.log('  → Merging AI analysis results...');
