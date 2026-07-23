@@ -87,7 +87,19 @@ export default function KeywordGaps({ gaps }) {
               <tr key={i}>
                 <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{g.keyword}</td>
                 <td style={{ fontFamily: 'var(--font-mono)' }}>{g.frequency} lần</td>
-                <td style={{ fontSize: '0.85rem' }}>{g.foundIn?.join(', ') || 'N/A'}</td>
+                <td style={{ fontSize: '0.825rem', wordBreak: 'break-all' }}>
+                  {g.foundIn && g.foundIn.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {g.foundIn.map((url, idx) => (
+                        <a key={idx} href={url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--brand-primary)', textDecoration: 'none' }}>
+                          {url}
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)' }}>N/A</span>
+                  )}
+                </td>
                 <td>
                   <span className={`badge ${getPriorityClass(g.priority)}`}>
                     {getPriorityLabel(g.priority)}

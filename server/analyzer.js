@@ -141,6 +141,35 @@ Tạo 10-20 priority items và content calendar 12 tuần (3 tháng).`,
   console.log('  → Merging AI analysis results...');
 
   const keywordGaps = keywordTopicResult.keywordGaps || [];
+  
+  // POST-PROCESSING: Ensure exact URLs and accurate frequency for keywords
+  keywordGaps.forEach(gap => {
+    const keywordLower = (gap.keyword || '').toLowerCase();
+    const exactUrls = new Set();
+    let exactFrequency = 0;
+
+    competitorData.forEach(comp => {
+      comp.pages.forEach(p => {
+        const titleLower = (p.title || '').toLowerCase();
+        const textLower = (p.bodyText || '').toLowerCase();
+        
+        if (titleLower.includes(keywordLower) || textLower.includes(keywordLower)) {
+          exactUrls.add(p.url);
+          // Count occurrences in text (simple match)
+          const regex = new RegExp(keywordLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+          const matches = (p.bodyText || '').toLowerCase().match(regex);
+          exactFrequency += matches ? matches.length : 1;
+        }
+      });
+    });
+    
+    // If we couldn't find exact matches (LLM hallucinated), fallback to what LLM provided
+    if (exactUrls.size > 0) {
+      gap.foundIn = Array.from(exactUrls);
+      gap.frequency = exactFrequency;
+    }
+  });
+
   const topicGaps = keywordTopicResult.topicGaps || [];
   const formatGaps = formatPriorityResult.formatGaps || { myFormats: {}, competitorFormats: {} };
   const priorityList = formatPriorityResult.priorityList || [];
